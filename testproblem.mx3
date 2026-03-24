@@ -1,0 +1,216 @@
+// four_magnets_vertex_hierarchy.mx3
+// 4 nanobars with angles 0°, 60°, 120°, 180°
+// Runs the 6 ice-rule initial states (two-in / two-out),
+// relaxes each one, and prints/saves final energies + final local-axis projections.
+
+// =====================================================
+// MESH
+// =====================================================
+nx := 256
+ny := 256
+nz := 1
+
+sx := 900e-9
+sy := 900e-9
+sz := 3e-9
+
+SetGridSize(nx, ny, nz)
+SetCellSize(sx/nx, sy/ny, sz/nz)
+EdgeSmooth = 8
+
+// =====================================================
+// MATERIAL
+// =====================================================
+Msat  = 800e3
+Aex   = 13e-12
+alpha = 0.5
+Ku1   = 3e4
+
+// =====================================================
+// GEOMETRY
+// =====================================================
+lbar := 260e-9
+wbar := 80e-9
+
+// bar angles
+a1 := 0.0
+a2 := pi/3
+a3 := 2*pi/3
+a4 := pi
+
+// Radial distances: 0, 1, 0.65, 1 in arbitrary units
+Runit := 80e-9
+
+//r1 := 1.0*Runit
+//r2 := 1.0*Runit
+//r3 := 1.0*Runit
+//r4 := 1.0*Runit
+
+r1 := 0.0*Runit
+r2 := 1.0*Runit
+r3 := 0.65*Runit
+r4 := 1.0*Runit
+
+c1 := lbar/2 + r1
+c2 := lbar/2 + r2
+c3 := lbar/2 + r3
+c4 := lbar/2 + r4
+
+shape1 := Rect(lbar, wbar).RotZ(a1).Transl(c1*cos(a1), c1*sin(a1), 0)
+shape2 := Rect(lbar, wbar).RotZ(a2).Transl(c2*cos(a2), c2*sin(a2), 0)
+shape3 := Rect(lbar, wbar).RotZ(a3).Transl(c3*cos(a3), c3*sin(a3), 0)
+shape4 := Rect(lbar, wbar).RotZ(a4).Transl(c4*cos(a4), c4*sin(a4), 0)
+
+allbars := shape1.Add(shape2).Add(shape3).Add(shape4)
+SetGeom(allbars)
+
+// =====================================================
+// REGIONS
+// =====================================================
+DefRegion(1, shape1)
+DefRegion(2, shape2)
+DefRegion(3, shape3)
+DefRegion(4, shape4)
+
+// Easy axes along each bar
+anisU.SetRegion(1, vector(cos(a1), sin(a1), 0))
+anisU.SetRegion(2, vector(cos(a2), sin(a2), 0))
+anisU.SetRegion(3, vector(cos(a3), sin(a3), 0))
+anisU.SetRegion(4, vector(cos(a4), sin(a4), 0))
+
+// =====================================================
+// OUTPUT SETUP
+// =====================================================
+SnapshotFormat = "png"
+OutputFormat   = OVF2_BINARY
+
+save(regions)
+save(geom)
+
+// No field: intrinsic vertex hierarchy
+B_ext = vector(0, 0, 0)
+
+// Table columns
+TableAdd(E_total)
+TableAdd(E_demag)
+TableAdd(E_exch)
+TableAdd(E_anis)
+
+// User variables for labeling / final-state readout
+stateID := 0.0
+s1init := 0.0
+s2init := 0.0
+s3init := 0.0
+s4init := 0.0
+
+p1 := 0.0
+p2 := 0.0
+p3 := 0.0
+p4 := 0.0
+
+TableAddVar(stateID, "stateID", "")
+TableAddVar(s1init,  "s1init",  "")
+TableAddVar(s2init,  "s2init",  "")
+TableAddVar(s3init,  "s3init",  "")
+TableAddVar(s4init,  "s4init",  "")
+TableAddVar(p1,      "p1_final", "")
+TableAddVar(p2,      "p2_final", "")
+TableAddVar(p3,      "p3_final", "")
+TableAddVar(p4,      "p4_final", "")
+
+// =====================================================
+// STATE 1: (+,+,-,-)
+// =====================================================
+stateID = 1
+s1init =  1
+s2init =  1
+s3init = -1
+s4init = -1
+
+m = uniform(1, 0, 0)
+m.SetRegion(1, uniform(s1init*cos(a1), s1init*sin(a1), 0))
+m.SetRegion(2, uniform(s2init*cos(a2), s2init*sin(a2), 0))
+m.SetRegion(3, uniform(s3init*cos(a3), s3init*sin(a3), 0))
+m.SetRegion(4, uniform(s4init*cos(a4), s4init*sin(a4), 0))
+
+relax()
+
+p1 = m.Comp(0).Region(1).Average()*cos(a1) + m.Comp(1).Region(1).Average()*sin(a1)
+p2 = m.Comp(0).Region(2).Average()*cos(a2) + m.Comp(1).Region(2).Average()*sin(a2)
+p3 = m.Comp(0).Region(3).Average()*cos(a3) + m.Comp(1).Region(3).Average()*sin(a3)
+p4 = m.Comp(0).Region(4).Average()*cos(a4) + m.Comp(1).Region(4).Average()*sin(a4)
+
+Print("STATE 1 init=(+,+,-,-)")
+Print("  E_total = ", E_total.Get())
+Print("  final projections = ", p1, ", ", p2, ", ", p3, ", ", p4)
+
+SnapshotAs(m, "state1_relaxed.png")
+SaveAs(m, "state1_relaxed.ovf")
+TableSave()
+
+// =====================================================
+// STATE 2: (+,-,+,-)
+// =====================================================
+stateID = 2
+s1init =  1
+s2init = -1
+s3init =  1
+s4init = -1
+
+m = uniform(1, 0, 0)
+m.SetRegion(1, uniform(s1init*cos(a1), s1init*sin(a1), 0))
+m.SetRegion(2, uniform(s2init*cos(a2), s2init*sin(a2), 0))
+m.SetRegion(3, uniform(s3init*cos(a3), s3init*sin(a3), 0))
+m.SetRegion(4, uniform(s4init*cos(a4), s4init*sin(a4), 0))
+
+relax()
+
+p1 = m.Comp(0).Region(1).Average()*cos(a1) + m.Comp(1).Region(1).Average()*sin(a1)
+p2 = m.Comp(0).Region(2).Average()*cos(a2) + m.Comp(1).Region(2).Average()*sin(a2)
+p3 = m.Comp(0).Region(3).Average()*cos(a3) + m.Comp(1).Region(3).Average()*sin(a3)
+p4 = m.Comp(0).Region(4).Average()*cos(a4) + m.Comp(1).Region(4).Average()*sin(a4)
+
+Print("STATE 2 init=(+,-,+,-)")
+Print("  E_total = ", E_total.Get())
+Print("  final projections = ", p1, ", ", p2, ", ", p3, ", ", p4)
+
+SnapshotAs(m, "state2_relaxed.png")
+SaveAs(m, "state2_relaxed.ovf")
+TableSave()
+
+// =====================================================
+// STATE 3: (+,-,-,+)
+// =====================================================
+stateID = 3
+s1init =  1
+s2init = -1
+s3init = -1
+s4init =  1
+
+m = uniform(1, 0, 0)
+m.SetRegion(1, uniform(s1init*cos(a1), s1init*sin(a1), 0))
+m.SetRegion(2, uniform(s2init*cos(a2), s2init*sin(a2), 0))
+m.SetRegion(3, uniform(s3init*cos(a3), s3init*sin(a3), 0))
+m.SetRegion(4, uniform(s4init*cos(a4), s4init*sin(a4), 0))
+
+relax()
+
+
+
+p1 = m.Comp(0).Region(1).Average()*cos(a1) + m.Comp(1).Region(1).Average()*sin(a1)
+p2 = m.Comp(0).Region(2).Average()*cos(a2) + m.Comp(1).Region(2).Average()*sin(a2)
+p3 = m.Comp(0).Region(3).Average()*cos(a3) + m.Comp(1).Region(3).Average()*sin(a3)
+p4 = m.Comp(0).Region(4).Average()*cos(a4) + m.Comp(1).Region(4).Average()*sin(a4)
+
+Print("STATE 3 init=(+,-,-,+)")
+Print("  E_total = ", E_total.Get())
+Print("  final projections = ", p1, ", ", p2, ", ", p3, ", ", p4)
+
+
+SnapshotAs(m, "state3_relaxed.png")
+SaveAs(m, "state3_relaxed.ovf")
+TableSave()
+
+
+Print("DONE")
+Flush()
